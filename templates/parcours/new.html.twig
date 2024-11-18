@@ -1,0 +1,285 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Créer un nouveau parcours{% endblock %}
+
+{% block body %}
+    <style>
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .container-form{
+            padding-left:10px;
+
+        }
+    </style>
+
+
+    <h1>Créer un nouveau parcours</h1>
+    {{ form_start(form) }}
+            
+ 
+    <div class="container-form">
+        <div class="form-group">
+            {{ form_label(form.nomParcours) }}
+            <br>
+            {{ form_widget(form.nomParcours) }}
+        </div>
+        <div class="form-group form-check">
+            {{ form_widget(form.prive) }}
+            {{ form_label(form.prive) }}
+            
+        </div>
+        <div class="form-group form-check">
+            {{ form_widget(form.exclusif) }}
+            {{ form_label(form.exclusif) }}
+        </div>
+        <div class="form-group">
+            {{ form_label(form.typeDeParcours) }}
+            <br>
+            {{ form_widget(form.typeDeParcours) }}
+
+        </div>   
+        <div class="form-group">
+            {{ form_label(form.difficulte) }}
+            <br>
+            {{ form_widget(form.difficulte) }}
+        </div>
+    </div>
+        
+
+ 
+
+
+    {# Conteneur de la carte #}
+    <div id="map" style="height: 500px; margin-top: 20px; "></div>
+
+    <button type="submit">Créer le parcours</button>
+    <a class="button" href="{{ path('app_parcours_index') }}">Retour à la liste</a>
+    {{ form_end(form) }}
+
+    <script>
+
+        const map = L.map('map').setView([48.8566, 2.3522], 12); // Paris avec un zoom plus bas
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            minZoom: 10,
+        }).addTo(map);
+
+        let startPoint = null;
+        let endPoint = null;
+        const intermediatePoints = [];
+        let routeControl = null;  // Contrôleur pour gérer l'itinéraire routé
+
+        const typesDePoints = {
+            "DEPART": "Point de départ",
+            "ARRIVEE": "Point d'arrivée",
+            "INTERMEDIAIRE": "Point intermédiaire"
+        };
+
+        // Fonction pour ajouter un marqueur avec un formulaire de détail dans une popup
+        function addMarker(lat, lon, label, type, existingDetails = '') {
+            const marker = L.marker([lat, lon], { draggable: true }).addTo(map)
+                .bindPopup(`
+                    <div>
+                        <h4>${label}</h4>
+                        <label for="details">Détails :</label>
+                        <input type="text" id="details" class="details-input" placeholder="Entrez les détails ici..." style="width: 100%; margin-bottom: 10px;" value="${existingDetails}">
+                        <button type="button" id="saveBtn">Enregistrer</button>
+                        <button type="button" id="deleteBtn" style="margin-left: 10px; color: red;">Supprimer</button>
+                    </div>
+                `);
+
+            marker.options.type = type;
+            marker.options.details = existingDetails; // Sauvegarder les détails dans les options du marqueur
+
+            // Attendre que la popup soit ouverte avant d'ajouter les événements
+            marker.on('popupopen', () => {
+                const saveButton = document.getElementById('saveBtn');
+                const detailsInput = document.getElementById('details');
+                const deleteButton = document.getElementById('deleteBtn');
+
+                // Affichage des détails dans le champ de texte
+                detailsInput.value = marker.options.details || '';
+
+                // Enregistrer les détails dans le marqueur
+                saveButton.onclick = function () {
+                    const details = detailsInput.value;
+                    marker.options.details = details;  // Sauvegarder les détails dans l'option du marqueur
+
+                    // Mettre à jour les champs cachés du formulaire avec les détails du marqueur
+                    updateFormFields();
+
+                    marker.closePopup();  // Fermer la popup une fois les détails enregistrés
+                };
+
+                // Supprimer le marqueur
+                deleteButton.onclick = function () {
+                    removeMarker(type, marker._leaflet_id);  // Supprimer le marqueur de la carte
+                    marker.closePopup();  // Fermer la popup après suppression
+                };
+            });
+
+            // Ajouter un événement pour la mise à jour lors du déplacement du marqueur
+            marker.on('move', updateFormFields);
+
+            return marker;
+        }
+
+        // Fonction pour supprimer un marqueur
+        function removeMarker(type, id) {
+            const marker = map._layers[id];
+
+            // Si c'est un point de départ, on le supprime
+            if (type === 'DEPART') {
+                startPoint = null;
+            } 
+            // Si c'est un point d'arrivée, on le supprime
+            else if (type === 'ARRIVEE') {
+                endPoint = null;
+            } 
+            // Si c'est un point intermédiaire, on le supprime
+            else {
+                const index = intermediatePoints.findIndex(m => m._leaflet_id === id);
+                if (index !== -1) intermediatePoints.splice(index, 1);
+            }
+
+            // Retirer le marqueur de la carte
+            map.removeLayer(marker);
+
+            // Mettre à jour les champs cachés et l'itinéraire
+            updateFormFields();
+            drawRoute();
+        }
+
+        // Fonction pour mettre à jour les champs cachés du formulaire avec les données actuelles
+        function updateFormFields() {
+            const points = {
+                start: startPoint ? { 
+                    lat: startPoint.getLatLng().lat, 
+                    lon: startPoint.getLatLng().lng, 
+                    type: startPoint.options.type,
+                    details: startPoint.options.details || '' 
+                } : null,
+                end: endPoint ? { 
+                    lat: endPoint.getLatLng().lat, 
+                    lon: endPoint.getLatLng().lng, 
+                    type: endPoint.options.type,
+                    details: endPoint.options.details || '' 
+                } : null,
+                intermediates: intermediatePoints.map(marker => ({
+                    lat: marker.getLatLng().lat,
+                    lon: marker.getLatLng().lng,
+                    type: marker.options.type,
+                    details: marker.options.details || ''
+                })),
+            };
+
+            // Mettre à jour les champs cachés
+            document.getElementById('parcours1_start_point').value = JSON.stringify(points.start);
+            document.getElementById('parcours1_end_point').value = JSON.stringify(points.end);
+            document.getElementById('parcours1_intermediate_points').value = JSON.stringify(points.intermediates);
+            
+            console.log("Start:", points.start);
+            console.log("End:", points.end);
+            console.log("Intermediates:", points.intermediates);
+        }
+
+
+        function drawRoute() {
+            // Supprimer l'itinéraire précédent s'il existe
+            if (routeControl) {
+                map.removeControl(routeControl);
+            }
+
+            const waypoints = [];
+            if (startPoint) waypoints.push(L.latLng(startPoint.getLatLng().lat, startPoint.getLatLng().lng));
+            intermediatePoints.forEach(point => waypoints.push(L.latLng(point.getLatLng().lat, point.getLatLng().lng)));
+            if (endPoint) waypoints.push(L.latLng(endPoint.getLatLng().lat, endPoint.getLatLng().lng));
+
+            console.log("Waypoints:", waypoints);
+
+            if (waypoints.length > 1) {
+                routeControl = L.Routing.control({
+                    waypoints: waypoints,
+                    
+                    lineOptions: {
+                        styles: [{ color: 'blue', opacity: 0.6, weight: 5 }]
+                    },
+                    addWaypoints: false,
+                    draggableWaypoints: true,
+                    createMarker: function() { return null; }
+                }).addTo(map);
+
+                routeControl.on('routingerror', function(e) {
+                    console.error("Erreur de routage:", e.error.message);
+                    alert("Erreur lors du calcul de l'itinéraire. Veuillez vérifier les points de départ et d'arrivée.");
+                });
+            }
+        }
+
+        
+
+
+
+
+
+        // Fonction pour gérer les clics sur la carte et ajouter un point
+        map.on('click', (e) => {
+            const { lat, lng } = e.latlng;
+
+            const typeSelection = document.createElement("select");
+            typeSelection.innerHTML = `
+                <option value="">Choisir type de point</option>
+                <option value="DEPART">Point de départ</option>
+                <option value="ARRIVEE">Point d'arrivée</option>
+                <option value="INTERMEDIAIRE">Point intermédiaire</option>
+            `;
+            typeSelection.style.display = "none";
+            document.body.appendChild(typeSelection);
+
+            typeSelection.onchange = () => {
+                const type = typeSelection.value;
+                typeSelection.remove();
+
+                if (type === 'DEPART') {
+                    if (startPoint) {
+                        alert("Un point de départ existe déjà. Veuillez le supprimer d'abord.");
+                        return;
+                    }
+                    startPoint = addMarker(lat, lng, typesDePoints[type], type);
+                } else if (type === 'ARRIVEE') {
+                    if (endPoint) {
+                        alert("Un point d'arrivée existe déjà. Veuillez le supprimer d'abord.");
+                        return;
+                    }
+                    endPoint = addMarker(lat, lng, typesDePoints[type], type);
+                } else {
+                    const intermediateMarker = addMarker(lat, lng, typesDePoints[type], type);
+                    intermediatePoints.push(intermediateMarker);
+                }
+
+                updateFormFields();  // Mettre à jour les champs cachés
+                drawRoute();  // Tracer l'itinéraire après l'ajout d'un point
+            };
+
+            typeSelection.style.position = "absolute";
+            typeSelection.style.left = e.originalEvent.pageX + "px";
+            typeSelection.style.top = e.originalEvent.pageY + "px";
+            typeSelection.style.display = "block";
+        });
+
+        document.querySelector('form').addEventListener('submit', function (e) {
+            // Check if both startPoint and endPoint are set
+            if (!startPoint || !endPoint) {
+                e.preventDefault(); // Prevent form submission
+                alert("Veuillez ajouter au moins un point de départ et un point d'arrivée avant de créer le parcours.");
+                return;
+            }
+        });
+        map.on('mouseup', (e) => {
+            drawRoute();
+        }); 
+
+    </script>
+{% endblock %}

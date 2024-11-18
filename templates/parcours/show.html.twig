@@ -1,0 +1,331 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Parcours
+{% endblock %}
+
+{% block body %}
+
+
+	<!--<table class="table">
+				<tbody>
+					<tr>
+						<th>Id</th>
+						<td>{{ parcour.id }}</td>
+					</tr>
+					<tr>
+						<th>NomParcours</th>
+						<td>{{ parcour.nomParcours }}</td>
+					</tr>
+					<tr>
+						<th>Prive</th>
+						<td>{{ parcour.prive ? 'Yes' : 'No' }}</td>
+					</tr>
+					<tr>
+						<th>Exclusif</th>
+						<td>{{ parcour.exclusif ? 'Yes' : 'No' }}</td>
+					</tr>
+					<tr>
+						<th>Status</th>
+						<td>{{ parcour.status ? 'Yes' : 'No' }}</td>
+					</tr>
+					<tr>
+						<th>DateCreation</th>
+						<td>{{ parcour.dateCreation ? parcour.dateCreation|date('Y-m-d H:i:s') : '' }}</td>
+					</tr>
+					<tr>
+						<th>DateModification</th>
+						<td>{{ parcour.dateModification ? parcour.dateModification|date('Y-m-d H:i:s') : '' }}</td>
+					</tr>
+				</tbody>
+			</table>-->
+
+
+	<html>
+		<head>
+			<style>
+
+				.details,
+				.comments {
+					background-color: #00BFFF;
+					padding: 20px;
+					margin-top: 20px;
+				}
+				.details .map,
+				.details .ranking {
+					background-color: #7CFC00;
+					padding: 20px;
+				}
+				.comments .comment-box {
+					background-color: #7CFC00;
+					padding: 20px;
+					margin-bottom: 20px;
+				}
+				.comments .comment {
+					background-color: #7CFC00;
+					padding: 10px;
+					margin-top: 10px;
+				}
+				.btn-comment {
+					background-color: #00BFFF;
+					color: black;
+					border: none;
+					padding: 10px 20px;
+				}
+			</style>
+		</head>
+		<body>
+			<div class="container-fluid">
+				<h1>
+					{{ parcour.nomParcours }}
+				</h1>
+				<div>
+
+					{% if userConnected %}
+						<!-- Si l'utilisateur est connecté, afficher le bouton "Démarrer parcours" -->
+						<div>
+							<button id="startButton" class="button">Démarrer parcours</button>
+							<span id="chrono" style="display: none; font-size: 20px; margin-left: 20px;">00:00:00</span>
+							<button id="endButton" class="button" style="display: none;">Terminer parcours</button>
+						</div>
+					{% else %}
+						<!-- Si l'utilisateur est déconnecté, cacher le bouton -->
+						<div>
+							<button id="startButton" class="button" style="display: none;">Démarrer parcours</button>
+							<span id="chrono" style="display: none; font-size: 20px; margin-left: 20px;">00:00:00</span>
+							<button id="endButton" class="button" style="display: none;">Terminer parcours</button>
+						</div>
+					{% endif %}
+
+				</div>
+				<br>
+				<br>
+				<br>
+				<a class="button" href="{{ path('app_parcours') }}">Retour à la liste</a>
+				<div class="row details">
+					<div class="col-md-10 map">
+						<h2>
+							Détails des points
+						</h2>
+						<div id="map" style="height: 600px;"></div>
+
+					</div>
+
+					<div class="col-md-2 ranking">
+						<h2>
+							Classement
+						</h2>
+						<table id="classementTable">
+							<thead>
+								<tr>
+									<th> Position &nbsp;</th>
+									<th> Utilisateur &nbsp;</th>
+									<th> Temps &nbsp;</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for username, time in classement %}
+									<tr>
+										<td>{{ loop.index }}</td>
+										<td>{{ username }}</td>
+										<td>{{ time }} minutes</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+
+				</div>
+				<div class="comments">
+					<h2>
+						Commentaire
+					</h2>
+					<div class="comment-box">
+						<h3>
+							Zone de texte du commentaire
+						</h3>
+					</div>
+					<button class="btn-comment">
+						Envoyer Commentaire
+					</button>
+					<div class="comment">
+						<p>
+							Pseudonyme
+						</p>
+						<p>
+							lorem ipsum message commentaire
+						</p>
+					</div>
+					<div class="comment">
+						<p>
+							Pseudonyme
+						</p>
+						<p>
+							lorem ipsum message commentaire
+						</p>
+					</div>
+				</div>
+			</div>
+		</body>
+	</html>
+
+
+	<script>
+		// Initialisation de la carte
+		let map = L.map('map').setView([
+			48.864, 2.351
+		], 12);
+		// Centré sur Paris
+
+		// Ajout de la couche de tuiles OpenStreetMap
+		L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+		}).addTo(map);
+		let startPoint = null;
+		let endPoint = null;
+		const intermediatePoints = [];
+		let routeControl = null;
+
+		const typesDePoints = {
+			"DEPART": "Point de départ",
+			"ARRIVEE": "Point d'arrivée",
+			"INTERMEDIAIRE": "Point intermédiaire"
+		};
+
+		const points = [
+			{% for point in pointsMAPs %}
+				{
+					id: {{ point.id }},
+					lat: {{ point.lat }},
+					lon: {{ point.lon }},
+					label: '{{ point.typeDePoints ? point.typeDePoints.libelleTypePoint : 'Type inconnu' }}',
+					type: '{{ point.typeDePoints.libelleTypePoint }}',
+					details: '{{ point.details|escape("js") }}'
+				},
+			{% endfor %}
+		];
+		
+		function addMarker(lat, lon, label, type, existingDetails = '') {
+			const marker = L.marker([lat, lon]).addTo(map)
+				.bindPopup(`
+					<div>
+						<h4>${label}</h4>
+						<label for="details">Détails :</label>
+						<p>${existingDetails || 'Aucun détail disponible.'}</p>
+					</div>
+				`);
+
+			marker.options.type = type;
+			marker.options.details = existingDetails;
+
+			return marker;
+		}
+		points.forEach(point => {
+			const marker = addMarker(point.lat, point.lon, typesDePoints[point.type], point.type, point.details);
+			if (point.type === 'DEPART') startPoint = marker;
+			else if (point.type === 'ARRIVEE') endPoint = marker;
+			else intermediatePoints.push(marker);
+
+		});
+
+
+		function drawRoute() {
+			if (routeControl) {
+				map.removeControl(routeControl);
+			}
+
+			const waypoints = [];
+			if (startPoint) waypoints.push(L.latLng(startPoint.getLatLng().lat, startPoint.getLatLng().lng));
+			intermediatePoints.forEach(point => waypoints.push(L.latLng(point.getLatLng().lat, point.getLatLng().lng)));
+			if (endPoint) waypoints.push(L.latLng(endPoint.getLatLng().lat, endPoint.getLatLng().lng));
+
+			if (waypoints.length > 1) {
+				routeControl = L.Routing.control({
+					waypoints: waypoints,
+					lineOptions: { styles: [{ color: 'blue', opacity: 0.6, weight: 4 }] },
+					addWaypoints: false, 
+					createMarker: function() { return null; },
+					show: false
+				}).addTo(map);
+			}
+		}
+
+		drawRoute();
+
+
+
+		let chronoInterval = null;
+		let startTime = null;
+
+		// Mettre a jour le chrono toute les seconde
+		function updateChrono() {
+			const now = new Date();
+			const elapsed = Math.floor((now - startTime) / 1000); // Time elapsed in seconds
+			const hours = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+			const minutes = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+			const seconds = String(elapsed % 60).padStart(2, '0');
+			document.getElementById('chrono').innerText = `${hours}:${minutes}:${seconds}`;
+		}
+
+		// Commencer le parcours
+		document.getElementById('startButton').addEventListener('click', function () {
+			fetch('{{ path('app_parcours_start', { id: parcour.id }) }}', {
+				method: 'POST',
+				headers: { 'X-Requested-With': 'XMLHttpRequest' }
+			})
+			.then(response => response.json())
+			.then(data => {
+				console.log(data);
+				if (data.message === 'Parcours démarré') {
+
+					//alert('Parcours démarré à : ' + data.dateDebut);
+					document.getElementById('startButton').style.display = 'none';
+					document.getElementById('endButton').style.display = 'inline-block';
+					document.getElementById('chrono').style.display = 'inline-block';
+
+				
+					startTime = new Date();
+					chronoInterval = setInterval(updateChrono, 1000);
+				}else{
+					alert(data.message);
+				}
+			});
+		});
+
+		// Finir le parcours
+		document.getElementById('endButton').addEventListener('click', function () {
+			fetch('{{ path('app_parcours_end', { id: parcour.id }) }}', {
+				method: 'POST',
+				headers: { 'X-Requested-With': 'XMLHttpRequest' }
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.message === 'Parcours terminé') {
+					//alert('Parcours terminé à : ' + data.dateFin);
+
+					// Cacher le bouton "Terminer" et le chrono
+					document.getElementById('endButton').style.display = 'none';
+					document.getElementById('chrono').style.display = 'none';
+					
+					// Réafficher le bouton "Démarrer"
+					document.getElementById('startButton').style.display = 'inline-block';
+
+					// Arrêter le chrono
+					clearInterval(chronoInterval);
+					resetChrono();
+				} else {
+					alert(data.message || 'Erreur lors de la terminaison du parcours.');
+				}
+			})
+			.catch(error => {
+				console.error('Erreur:', error);
+				alert('Une erreur est survenue lors de la tentative de terminer le parcours.');
+			});
+
+
+			function resetChrono() {
+				document.getElementById('chrono').innerText = '00:00:00';
+			}
+
+		});
+	</script>
+{% endblock %}

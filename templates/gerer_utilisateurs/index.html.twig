@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gérer Utilisateurs{% endblock %}
+
+{% block body %}
+<style>
+    .btn {margin: 0 5px; }           
+    .button-container {
+        display: flex; /* Utilise flexbox pour aligner les éléments horizontalement */
+        gap: 10px; /* Espace entre les boutons */  
+    }   
+    button {
+        /*margin-top: 15px;
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #76c043; /* Couleur de fond */
+        /*border: none;
+        border-radius: 4px;
+        color: #f5f5f5; /* Couleur du texte */
+        /*font-size: 16px;
+        cursor: pointer;*/
+        padding: 13.5px;
+        background-color: #76c043; /* Couleur de fond */
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        color: #f5f5f5;
+        text-decoration: none;
+    }
+</style>
+    <h1>Gérer Utilisateurs</h1>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>Pseudo</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                
+                {{ user.roles ? user.roles|json_encode : '' }}
+                </td>
+                <td>{{ user.pseudo }}</td>
+                <td>
+                <div class="button-container">
+                    <a class="button" href="{{ path('app_gerer_utilisateurs_edit', {'id': user.id}) }}">Modifier</a> 
+
+                    {{ include('gerer_utilisateurs/_delete_form.html.twig') }}
+                </div>
+
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="6">Aucun Utilisateur trouvé</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock %}

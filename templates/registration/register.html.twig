@@ -1,0 +1,77 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}S'enregistrer{% endblock %}
+
+{% block body %}
+<style>
+/* Conteneur principal */
+.container {
+    background-color: #fff;
+    margin-top: 100px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+}
+
+/* Titre */
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+/* Style des champs de formulaire */
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+
+
+/* Lien d'inscription ou de connexion */
+.link {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    color: #007bff;
+    text-decoration: none;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+</style>
+
+<div class="container">
+    <h1>S'enregistrer</h1>
+
+    {{ form_errors(registrationForm) }}
+
+    {{ form_start(registrationForm) }}
+        {{ form_row(registrationForm.email, {
+            'attr': {'placeholder': 'Entrez votre email'}
+        }) }}
+        {{ form_row(registrationForm.pseudo, {
+            'attr': {'placeholder': 'Entrez votre pseudo'}
+        }) }}
+        {{ form_row(registrationForm.plainPassword, {
+            'label': 'Mot de passe',
+            'attr': {'placeholder': 'Entrez votre mot de passe'}
+        }) }}
+        {{ form_row(registrationForm.agreeTerms) }}
+
+        <button class="button" type="submit">
+            S'enregistrer
+        </button>
+    {{ form_end(registrationForm) }}
+
+    <a href="{{ path('app_login') }}" class="link">Déjà un compte ? Se connecter</a>
+</div>
+{% endblock %}

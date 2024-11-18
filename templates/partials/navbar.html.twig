@@ -1,0 +1,148 @@
+<style>
+	.navbar {
+		background-color: #4A90E2;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 10px 20px;
+	}
+	.navbar .logo img {
+		height: 40px;
+	}
+	.navbar .nav-items {
+		display: flex;
+		align-items: center;
+	}
+	.navbar .nav-items .navbar-item {
+		color: white;
+		font-size: 18px;
+		margin-right: 20px;
+		text-decoration: none;
+	}
+	.navbar .nav-items .navbar-item:hover {
+		color: #A1D490;
+	}
+	.navbar .user-info {
+		display: flex;
+		align-items: center;
+	}
+	.navbar .profile img {
+		height: 40px;
+		margin-left: 10px;
+	}
+	.sidebar {
+		background-color: #A1D490;
+		padding: 20px;
+		height: 100vh;
+	}
+	.sidebar select,
+	.sidebar button {
+		width: 100%;
+		margin-bottom: 20px;
+		padding: 10px;
+		font-size: 16px;
+	}
+	.content {
+		padding: 20px;
+		background-color: white;
+		flex-grow: 1;
+	}
+	.content h1 {
+		font-size: 24px;
+		margin-bottom: 20px;
+	}
+	.card {
+		margin-bottom: 20px;
+	}
+	.card img {
+		width: 100%;
+	}
+	.card-body {
+		background-color: #A1D490;
+		color: white;
+		text-align: center;
+	}
+	.card-body .btn {
+		background-color: #4A90E2;
+		color: white;
+		border: none;
+		margin: 5px;
+	}
+
+	@media(max-width: 768px) {
+		.sidebar {
+			height: auto;
+			padding: 10px;
+		}
+		.content {
+			margin-left: 0;
+		}
+		.navbar .nav-items {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+		.navbar .nav-items .navbar-item {
+			margin-right: 0;
+			margin-bottom: 10px;
+		}
+		.navbar .user-info {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+	}
+</style></head><body>
+<nav class="navbar">
+	<div class="logo">
+		<a href="{{ path('app_parcours') }}">
+			<img alt="Logo" src="{{ asset('assets/images/Flow_logo.png') }}"/>
+		</a>
+	</div>
+	<div class="nav-items">
+		<a class="navbar-item" href="{{ path('app_parcours') }}">
+			Parcours
+		</a>
+		{% if app.user %}
+			{% if app.user.role.getLibelleRole() == 'ROLE_ROUTE_CREATOR' %}
+				<a class="navbar-item" href="{{ path('app_parcours_index') }}">
+					Gérer Parcours
+				</a>
+			{% endif %}
+			{% if app.user.role.getLibelleRole() == 'ROLE_ADMIN' %}
+				<a class="navbar-item" href="{{ path('app_parcours_index') }}">
+					Gérer Parcours
+				</a>
+				<a class="navbar-item" href="{{ path('app_gerer_utilisateurs_index') }}">
+					Gérer Utilisateur
+				</a>
+			{% endif %}
+		{% endif %}
+	</div>
+	<div class="nav-items">
+		{% if app.user %}
+			<div class="user-info">
+				<div class="logout">
+					<div class="nav-items">
+						<a class="navbar-item" href="{{ path('app_logout') }}">
+							Déconnexion
+						</a>
+					</div>
+				</div>
+			</div>
+			<div class="profile">
+				<a href="{{ path('app_profile') }}">
+					<img alt="Profile" src="{{ asset('assets/images/icons8-profil.png') }}"/>
+				</a>
+			</div>
+		{% else %}
+			<div class="user-info">
+				<a class="navbar-item" href="{{ path('app_login') }}">
+					Connexion
+				</a>
+				<a class="navbar-item" href="{{ path('app_register') }}">
+					S'inscrire
+				</a>
+			</div>
+		{% endif %}
+	</div>
+</nav></body>

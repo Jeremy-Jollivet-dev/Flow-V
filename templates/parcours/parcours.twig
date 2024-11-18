@@ -1,0 +1,131 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des Parcours{% endblock %}
+
+{% block body %}
+    <div class="d-flex flex-column flex-md-row">
+        <div class="sidebar">
+            <form method="get" action="{{ path('app_parcours') }}">
+                <select class="combo-box" name="type">
+                    <option value="">Type de parcours</option>
+                    {% for type in typedeparcours %}
+                        <option value="{{ type.id }}" {% if type.id == selectedType %} selected {% endif %}>{{ type.libelleParcours }}</option>
+                    {% endfor %}
+                </select>
+
+                <select class="combo-box" name="difficulty">
+                    <option value="">Difficulté</option>
+                    {% for diff in difficulty %}
+                        <option value="{{ diff.id }}" {% if diff.id == selectedDifficulty %} selected {% endif %}>{{ diff.libelleDifficulte }}</option>
+                    {% endfor %}
+                </select>
+
+                <button class="button" type="submit">Filtrer</button>
+            </form>
+        </div>
+
+        <div class="content">
+            <h1>Parcours disponible</h1>
+            <div class="row">
+                {% for parcours in parcoursList %}
+                    <a href="/parcours/{{ parcours.id }}" class="col-md-6 col-lg-4" style="text-decoration: none; color: inherit;">
+                        <div class="card">
+                            <div id="map-{{ parcours.id }}" style="height: 300px;"></div> 
+                            <div class="card-body">
+                                <button class="btn">{{ parcours.typedeparcours.libelleParcours }}</button>
+                                <button class="btn">{{ parcours.difficulte.libelleDifficulte }}</button>
+                                <p>{{ parcours.nomParcours }}</p>
+                            </div>
+                        </div>
+                    </a>
+
+                    <script>
+                        (function() {
+                            const map = L.map('map-{{ parcours.id }}').setView([48.864, 2.351], 12);
+
+                            L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                                attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+                            }).addTo(map);
+                            let startPoint = null;
+                            let endPoint = null;
+                            const intermediatePoints = [];
+                            let routeControl = null;
+
+                            const typesDePoints = {
+                                "DEPART": "Point de départ",
+                                "ARRIVEE": "Point d'arrivée",
+                                "INTERMEDIAIRE": "Point intermédiaire"
+                            };
+
+                            const points = [
+                                {% for point in parcours.pointsMAPs %}
+                                    {
+                                        id: {{ point.id }},
+                                        lat: {{ point.lat }},
+                                        lon: {{ point.lon }},
+                                        label: '{{ point.typeDePoints ? point.typeDePoints.libelleTypePoint : 'Type inconnu' }}',
+                                        type: '{{ point.typeDePoints.libelleTypePoint }}',
+                                        details: '{{ point.details|escape("js") }}'
+                                    },
+                                {% endfor %}
+                            ];
+                            
+                            function addMarker(lat, lon, label, type, existingDetails = '') {
+                                const marker = L.marker([lat, lon]).addTo(map)
+                                    .bindPopup(`
+                                        <div>
+                                            <h4>${label}</h4>
+                                            <label for="details">Détails :</label>
+                                            <p>${existingDetails || 'Aucun détail disponible.'}</p>
+                                        </div>
+                                    `);
+
+                                marker.options.type = type;
+                                marker.options.details = existingDetails;
+
+                                return marker;
+                            }
+                            points.forEach(point => {
+                                const marker = addMarker(point.lat, point.lon, typesDePoints[point.type], point.type, point.details);
+                                if (point.type === 'DEPART') startPoint = marker;
+                                else if (point.type === 'ARRIVEE') endPoint = marker;
+                                else intermediatePoints.push(marker);
+                
+                            });
+
+
+                            function drawRoute() {
+                                if (routeControl) {
+                                    map.removeControl(routeControl);
+                                }
+
+                                const waypoints = [];
+                                if (startPoint) waypoints.push(L.latLng(startPoint.getLatLng().lat, startPoint.getLatLng().lng));
+                                intermediatePoints.forEach(point => waypoints.push(L.latLng(point.getLatLng().lat, point.getLatLng().lng)));
+                                if (endPoint) waypoints.push(L.latLng(endPoint.getLatLng().lat, endPoint.getLatLng().lng));
+
+                                if (waypoints.length > 1) {
+                                    routeControl = L.Routing.control({
+                                        waypoints: waypoints,
+                                        lineOptions: { styles: [{ color: 'blue', opacity: 0.6, weight: 4 }] },
+                                        addWaypoints: false, 
+                                        createMarker: function() { return null; },
+                                        show: false
+                                    }).addTo(map);
+                                }
+                            }
+
+                            drawRoute();
+
+                            
+                        })();
+                    </script>
+                {% else %}
+                    <div class="col-md-12">
+                        <p>Aucun parcours disponible</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

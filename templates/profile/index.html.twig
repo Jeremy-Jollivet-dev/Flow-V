@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Profil{% endblock %}
+
+{% block body %}
+<style>
+    .profile-header {
+            margin: 20px;
+        }
+        .profile-content {
+            background-color: #7AC142;
+            padding: 20px;
+            margin: 20px;
+            border: 1px solid #000;
+        }
+        .profile-content h2 {
+            margin-bottom: 20px;
+        }
+        .profile-content .row {
+            margin-bottom: 10px;
+        }
+</style>
+
+    <div class="profile-header">
+        <h1>Mon Profil</h1>
+        <h2>Bienvenue, {{pseudo}}</h2>
+    </div>
+
+
+    <div class="profile-content">
+        <h2>Mes parcours réalisés</h2>
+
+        {% if parcoursRealises is not empty %}
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Nom du parcours</strong></p>
+                </div>
+                <div class="col-md-2">
+                    <p><strong>Temps</strong></p>
+                </div>
+            </div>
+
+            {% for parcours in parcoursRealises %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <p>{{ parcours.parcours }}</p>
+                    </div>
+                    <div class="col-md-2">
+                        <p>{{ parcours.temps }} min</p>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Aucun parcours réalisé</p>
+        {% endif %}
+    </div>
+{% endblock %}

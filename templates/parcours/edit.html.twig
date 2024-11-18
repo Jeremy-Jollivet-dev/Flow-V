@@ -1,0 +1,205 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Modifier Parcours{% endblock %}
+
+{% block body %}
+    <h1>Modifier Parcours</h1>
+    
+    {{ form_start(form) }}
+    
+    <div class="container-form">
+        <div class="form-group">
+            {{ form_label(form.nomParcours) }}
+            <br>
+            {{ form_widget(form.nomParcours) }}
+        </div>
+        <div class="form-group form-check">
+            {{ form_widget(form.prive) }}
+            {{ form_label(form.prive) }}
+        </div>
+        <div class="form-group form-check">
+            {{ form_widget(form.exclusif) }}
+            {{ form_label(form.exclusif) }}
+        </div>
+        <div class="form-group">
+            {{ form_label(form.typeDeParcours) }}
+            <br>
+            {{ form_widget(form.typeDeParcours) }}
+        </div>   
+        <div class="form-group">
+            {{ form_label(form.difficulte) }}
+            <br>
+            {{ form_widget(form.difficulte) }}
+        </div>
+    </div>
+
+    <div id="map" style="height: 500px; margin-top: 20px;"></div>
+
+    <button type="submit">Sauvegarder</button>
+    <br>
+    <br>
+
+    {{ form_end(form) }}
+    
+    <script>
+        const map = L.map('map').setView([48.864, 2.351], 12);
+
+        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const points = [
+            {% for point in pointsMAPs %}
+                {
+                    id: {{ point.id }},
+                    lat: {{ point.lat }},
+                    lon: {{ point.lon }},
+                    label: '{{ point.typeDePoints ? point.typeDePoints.libelleTypePoint : 'Type inconnu' }}',
+                    type: '{{ point.typeDePoints.libelleTypePoint }}',
+                    details: '{{ point.details|escape("js") }}'
+                },
+            {% endfor %}
+        ];
+
+        let startPoint = null;
+        let endPoint = null;
+        const intermediatePoints = [];
+        let routeControl = null;
+
+        const typesDePoints = {
+            "DEPART": "Point de départ",
+            "ARRIVEE": "Point d'arrivée",
+            "INTERMEDIAIRE": "Point intermédiaire"
+        };
+
+        function addMarker(lat, lon, label, type, existingDetails = '') {
+            const marker = L.marker([lat, lon], { draggable: true }).addTo(map)
+                .bindPopup(`
+                    <div>
+                        <h4>${label}</h4>
+                        <label for="details">Détails :</label>
+                        <input type="text" id="details" class="details-input" placeholder="Entrez les détails ici..." style="width: 100%; margin-bottom: 10px;" value="${existingDetails}">
+                        <button type="button" id="saveBtn">Enregistrer</button>
+                        <button type="button" id="deleteBtn" style="margin-left: 10px; color: red;" ${type === 'DEPART' || type === 'ARRIVEE' ? 'disabled' : ''}>Supprimer</button>
+                    </div>
+                `);
+
+            marker.options.type = type;
+            marker.options.details = existingDetails;
+
+            marker.on('popupopen', () => {
+                const saveButton = document.getElementById('saveBtn');
+                const detailsInput = document.getElementById('details');
+                const deleteButton = document.getElementById('deleteBtn');
+
+                detailsInput.value = marker.options.details || '';
+
+                saveButton.onclick = function () {
+                    marker.options.details = detailsInput.value;
+                    updateFormFields();
+                    marker.closePopup();
+                };
+
+                deleteButton.onclick = function () {
+                    if (type !== 'DEPART' && type !== 'ARRIVEE') {
+                        removeMarker(type, marker._leaflet_id);
+                        marker.closePopup();
+                    }
+                };
+            });
+            // Ajouter un événement pour la mise à jour lors du déplacement du marqueur
+            marker.on('move', updateFormFields);
+            marker.on('dragend', drawRoute);
+            return marker;
+            
+        }
+
+        function removeMarker(type, id) {
+            const marker = map._layers[id];
+            if (type === 'DEPART') {
+                startPoint = null;
+            } else if (type === 'ARRIVEE') {
+                endPoint = null;
+            } else {
+                const index = intermediatePoints.findIndex(m => m._leaflet_id === id);
+                if (index !== -1) intermediatePoints.splice(index, 1);
+            }
+            map.removeLayer(marker);
+            updateFormFields();
+            drawRoute();
+        }
+
+        function updateFormFields() {
+            const points = {
+                start: startPoint ? { 
+                    lat: startPoint.getLatLng().lat, 
+                    lon: startPoint.getLatLng().lng,
+                    type: startPoint.options.type,
+                    details: startPoint.options.details || '' 
+                } : null,
+                end: endPoint ? { 
+                    lat: endPoint.getLatLng().lat, 
+                    lon: endPoint.getLatLng().lng,
+                    type: endPoint.options.type,
+                    details: endPoint.options.details || '' 
+                } : null,
+                intermediates: intermediatePoints.map(marker => ({
+                    lat: marker.getLatLng().lat,
+                    lon: marker.getLatLng().lng,
+                    type: marker.options.type,
+                    details: marker.options.details || ''
+                }))
+            };
+
+            document.getElementById('parcours1_start_point').value = JSON.stringify(points.start);
+            document.getElementById('parcours1_end_point').value = JSON.stringify(points.end);
+            document.getElementById('parcours1_intermediate_points').value = JSON.stringify(points.intermediates);
+
+            console.log("Start:", points.start);
+            console.log("End:", points.end);
+            console.log("Intermediates:", points.intermediates);
+        }
+
+        function drawRoute() {
+            if (routeControl) {
+                map.removeControl(routeControl);
+            }
+
+            const waypoints = [];
+            if (startPoint) waypoints.push(L.latLng(startPoint.getLatLng().lat, startPoint.getLatLng().lng));
+            intermediatePoints.forEach(point => waypoints.push(L.latLng(point.getLatLng().lat, point.getLatLng().lng)));
+            if (endPoint) waypoints.push(L.latLng(endPoint.getLatLng().lat, endPoint.getLatLng().lng));
+
+            if (waypoints.length > 1) {
+                routeControl = L.Routing.control({
+                    waypoints: waypoints,
+                    lineOptions: { styles: [{ color: 'blue', opacity: 0.6, weight: 4 }] },
+                    addWaypoints: false,
+                    draggableWaypoints: true,
+                    createMarker: function() { return null; }
+                }).addTo(map);
+            }
+        }
+
+        points.forEach(point => {
+            const marker = addMarker(point.lat, point.lon, typesDePoints[point.type], point.type, point.details);
+            if (point.type === 'DEPART') startPoint = marker;
+            else if (point.type === 'ARRIVEE') endPoint = marker;
+            else intermediatePoints.push(marker);
+            updateFormFields();
+        });
+
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+            const newMarker = addMarker(lat, lon, typesDePoints["INTERMEDIAIRE"], "INTERMEDIAIRE");
+            intermediatePoints.push(newMarker);
+            updateFormFields();
+            drawRoute();
+        });
+
+        drawRoute();
+    </script>
+    
+    <a class="button" href="{{ path('app_parcours_index') }}">Retour à la liste</a>
+{% endblock %}

@@ -1,0 +1,15 @@
+{{ form_start(form) }}
+    {{ form_widget(form) }}
+
+<ul>
+    {% for point in pointsMAPs %}
+        <li>{{ point.lat }}</li> 
+        <li>{{ point.lon }}</li> 
+    {% else %}
+        <li>No Points MAPs associated with this parcours.</li>
+    {% endfor %}
+</ul>
+    <button type="submit">Sauvegarder</button>
+{{ form_end(form) }}
+
+

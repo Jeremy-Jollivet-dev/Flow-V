@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Test{% endblock %}
+
+{% block body %}
+<div id="map" style="height: 500px; margin-top: 20px;"></div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+<script src="js/L.Routing.GraphHopper.js"></script> <!-- Ajoutez une copie locale de polyline.js -->
+<script src="https://unpkg.com/corslite@0.0.5/corslite.js"></script>
+
+<script>
+    const map = L.map('map').setView([48.8566, 2.3522], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+    const graphhopperApiKey = '25ca8b2a-12d2-4494-85f6-1bc7a2fb9f65';
+
+    L.Routing.control({
+        waypoints: [
+            L.latLng(48.8566, 2.3522),
+            L.latLng(48.8666, 2.3333)
+        ],
+        router: L.Routing.graphHopper(graphhopperApiKey, { vehicle: 'bike' }),
+        lineOptions: { styles: [{ color: 'blue', opacity: 0.8, weight: 6 }] },
+        createMarker: function() { return null; }
+    }).addTo(map);
+</script>
+{% endblock %}
